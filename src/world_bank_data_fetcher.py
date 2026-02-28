@@ -2,12 +2,18 @@
 Module for fetching indicator data from the World Bank API.
 """
 
+# ---------------------------------------------------------------------
+# Standard library imports
+# ---------------------------------------------------------------------
 from pathlib import Path
-from typing import Dict, Any, List
 
+# ---------------------------------------------------------------------
+# Third-party imports
+# ---------------------------------------------------------------------
 import requests
 import pandas as pd
-from pathlib import Path
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 # List of EU ISO3 country codes
 # These codes will be joined using ";" in the API request
@@ -17,9 +23,24 @@ EU_ISO3 = [
     "POL","PRT","ROU","SVK","SVN","ESP","SWE"
 ]
 
+def create_retry_session() -> requests.Session:
+    """Create requests session with retry strategy."""
+    session = requests.Session()
+
+    retry_strategy = Retry(
+        total=5,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+    )
+
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("https://", adapter)
+
+    return session
 
 def fetch_worldbank_indicator(indicator_code: str, filename: str) -> pd.DataFrame:
-    
+
     """
     Fetch data for a given World Bank indicator and save it to CSV.
 
@@ -34,7 +55,7 @@ def fetch_worldbank_indicator(indicator_code: str, filename: str) -> pd.DataFram
     -------
     pd.DataFrame
         Cleaned DataFrame with columns:
-        country, iso3, year, value
+        countryName, country (ISO3), year, value
     """
 
     # Join EU country codes into semicolon-separated string
@@ -52,27 +73,33 @@ def fetch_worldbank_indicator(indicator_code: str, filename: str) -> pd.DataFram
         "per_page": 20000
     }
 
-    # Add browser-like header to prevent request blocking
     headers = {
         "User-Agent": "Mozilla/5.0"
     }
 
-    #print(f"Requesting indicator: {indicator_code}")
-    #print("URL:", url)
+    # Create session with retry logic (CRITICAL for API stability)
+
+    session = create_retry_session()
 
     # Make API request
     # Timeout set to 120 seconds because API response is slow
-    response = requests.get(
-        url,
-        params=params,
-        headers=headers,
-        timeout=120
-    )
+    try:
+        response = session.get(
+            url,
+            params=params,
+            headers=headers,
+            timeout=(10, 120)  # (connect timeout, read timeout)
+        )
+        response.raise_for_status()
 
     # Raise exception if HTTP request failed (e.g., 500, 502 errors)
-    response.raise_for_status()
+    except requests.exceptions.RequestException as error:
+        raise RuntimeError(
+            f"World Bank API request failed: {error}"
+        ) from error
 
     # Parse JSON response
+
     # World Bank returns:
     # data[0] → metadata
     # data[1] → actual records
@@ -87,7 +114,7 @@ def fetch_worldbank_indicator(indicator_code: str, filename: str) -> pd.DataFram
     # Convert JSON records to pandas DataFrame
     df = pd.DataFrame(records)
 
-    # Clean and restructure dataset
+    # Clean and transform dataset
 
     # Extract country name from nested dictionary
     df["countryName"] = df["country"].apply(lambda x: x["value"])
@@ -106,7 +133,6 @@ def fetch_worldbank_indicator(indicator_code: str, filename: str) -> pd.DataFram
 
     # Convert year column to integer
     df["year"] = df["year"].astype(int)
-
 
     # Save cleaned dataset to data/raw directory
     output_dir = Path("data/raw")

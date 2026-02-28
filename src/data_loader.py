@@ -97,8 +97,8 @@ def standardize_worldbank(df: pd.DataFrame, indicator_name: str) -> pd.DataFrame
     df["year"] = df["year"].astype(int)
 
     # Filter to EU countries only to reduce memory usage
-    EU_ISO3 = set(COUNTRY_ISO2_TO_ISO3.values())
-    df = df[df["iso3"].isin(EU_ISO3)]
+    eu_iso3 = set(COUNTRY_ISO2_TO_ISO3.values())
+    df = df[df["iso3"].isin(eu_iso3)]
 
     # Rename value column to indicator
     df = df.rename(columns={"value": indicator_name})
@@ -205,4 +205,3 @@ def integrate_datasets() -> pd.DataFrame:
     df_master.to_csv(PROCESSED_DATA_PATH / "master_dataset.csv", index=False)
 
     return df_master
-

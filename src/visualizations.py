@@ -12,17 +12,23 @@ Design Principles:
 """
 
 # ---------------------------------------------------------------------
-# Backend Configuration (CRITICAL for stability)
+# Standard library imports
+# ---------------------------------------------------------------------
+from pathlib import Path
+
+# ---------------------------------------------------------------------
+# Third-party imports
 # ---------------------------------------------------------------------
 import matplotlib
-matplotlib.use("Agg")  # Non-interactive backend
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from pathlib import Path
 from scipy.stats import gaussian_kde
 
+# ---------------------------------------------------------------------
+# Backend Configuration (CRITICAL for stability)
+# ---------------------------------------------------------------------
+matplotlib.use("Agg")  # Non-interactive backend
 
 # ---------------------------------------------------------------------
 # Global Plot Configuration
@@ -56,7 +62,7 @@ def save_figure(fig, output_path: Path) -> None:
 # 1️. Correlation Heatmap (Pure Matplotlib)
 # ---------------------------------------------------------------------
 def plot_correlation(df: pd.DataFrame, figures_dir: Path) -> None:
-
+    """Generate and save correlation heatmap of numeric features."""
     numeric_df = df.select_dtypes(include=[np.number]).drop(columns=["year"], errors="ignore")
     corr = numeric_df.corr()
 
@@ -79,7 +85,7 @@ def plot_correlation(df: pd.DataFrame, figures_dir: Path) -> None:
 # 2️. Life Expectancy Trend Over Time
 # ---------------------------------------------------------------------
 def plot_trends(df: pd.DataFrame, figures_dir: Path) -> None:
-
+    """Plot life expectancy trends over time for all countries."""
     fig, ax = plt.subplots(figsize=(10, 6))
 
     for iso in df["iso3"].unique():
@@ -102,7 +108,7 @@ def plot_trends(df: pd.DataFrame, figures_dir: Path) -> None:
 # 3️. GDP vs Life Expectancy
 # ---------------------------------------------------------------------
 def plot_gdp_relationship(df: pd.DataFrame, figures_dir: Path) -> None:
-
+    """Plot GDP per capita vs life expectancy with log-scale regression."""
     data = df[["gdp_per_capita", "life_expectancy"]].dropna()
 
     # Sample large datasets (prevents freeze)
@@ -137,7 +143,7 @@ def plot_gdp_relationship(df: pd.DataFrame, figures_dir: Path) -> None:
 # 4️. Fertility vs Life Expectancy
 # ---------------------------------------------------------------------
 def plot_fertility_relationship(df: pd.DataFrame, figures_dir: Path) -> None:
-
+    """Plot fertility rate vs life expectancy with regression line."""
     data = df[["fertility_rate", "life_expectancy"]].dropna()
 
     if len(data) > 3000:
@@ -167,7 +173,7 @@ def plot_fertility_relationship(df: pd.DataFrame, figures_dir: Path) -> None:
 # 5️. Distribution of Life Expectancy
 # ---------------------------------------------------------------------
 def plot_distribution(df: pd.DataFrame, figures_dir: Path) -> None:
-
+    """Plot histogram and KDE distribution of life expectancy."""
     life_exp = df["life_expectancy"].dropna()
 
     fig, ax = plt.subplots(figsize=(8, 6))
@@ -190,7 +196,7 @@ def plot_distribution(df: pd.DataFrame, figures_dir: Path) -> None:
 # Main Visualisation Runner
 # ---------------------------------------------------------------------
 def run_visualisations(df: pd.DataFrame) -> None:
-
+    """Generate and save all project visualisations."""
     print("\n" + "=" * 100)
     print("STEP 4: Generating Visualisations")
     print("=" * 100)

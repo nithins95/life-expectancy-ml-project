@@ -3,14 +3,13 @@ Module for fetching data from the Eurostat API.
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-from urllib import response
-from warnings import filters
+from typing import Any, Dict, List
 
 import pandas as pd
 import requests
 from urllib3 import Retry
 
+from requests.adapters import HTTPAdapter
 
 def fetch_eurostat_dataset(
     dataset_code: str, filters: Dict[str, Any], filename: str
@@ -60,10 +59,8 @@ def fetch_eurostat_dataset(
             params[dim] = codes
 
     # Fetch data from the API
-    
+
     # Create session with retry logic
-    from requests.adapters import HTTPAdapter
-    from urllib3.util.retry import Retry
 
     session = requests.Session()
 
@@ -86,14 +83,18 @@ def fetch_eurostat_dataset(
 
         response.raise_for_status()
 
-    except requests.exceptions.RequestException as e:
-        raise RuntimeError(f"Eurostat API request failed: {e}")
- 
+    except requests.exceptions.RequestException as error:
+        raise RuntimeError(
+            f"Eurostat API request failed: {error}"
+        ) from error
+
     # Parse JSON response
     try:
         response_data: Dict[str, Any] = response.json()
-    except requests.exceptions.JSONDecodeError as e:
-        raise ValueError(f"Failed to parse JSON response: {e}")
+    except requests.exceptions.JSONDecodeError as error:
+        raise ValueError(
+            f"Failed to parse JSON response: {error}"
+        ) from error
 
     # Convert SDMX-style JSON to DataFrame
     df = sdmx_to_dataframe(response_data)
@@ -130,14 +131,14 @@ def sdmx_to_dataframe(sdmx_data: Dict[str, Any]) -> pd.DataFrame:
         # Get dimension metadata
         geo_idx = None
         time_idx = None
-        
+
         dimensions_list = []
         dimension_sizes = []
 
         for i, (dim_name, dim_data) in enumerate(dimension.items()):
             dimensions_list.append(dim_name)
             dimension_sizes.append(len(dim_data.get("category", {}).get("index", {})))
-            
+
             if dim_name == "geo":
                 geo_idx = i
             elif dim_name == "time":
@@ -187,8 +188,10 @@ def sdmx_to_dataframe(sdmx_data: Dict[str, Any]) -> pd.DataFrame:
             by=["country", "year"]
         ).reset_index(drop=True)
 
-    except KeyError as e:
-        raise KeyError(f"Unexpected SDMX data structure: {e}")
+    except KeyError as error:
+        raise KeyError(
+            f"Unexpected SDMX data structure: {error}"
+        ) from error
 
 
 def decode_multidimensional_index(

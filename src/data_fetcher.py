@@ -4,13 +4,21 @@ Data acquisition orchestration module.
 Coordinates fetching data from multiple sources (Eurostat and World Bank)
 with error handling and logging.
 """
-
+# ---------------------------------------------------------------------
+# Standard library imports
+# ---------------------------------------------------------------------
+import logging
 from pathlib import Path
+from typing import Callable
+
+# ---------------------------------------------------------------------
+# Third-party imports
+# ---------------------------------------------------------------------
 import pandas as pd
 
-import logging
-from typing import Callable, List
-
+# ---------------------------------------------------------------------
+# Local application imports
+# ---------------------------------------------------------------------
 from src.eurostat_data_fetcher import (
     fetch_doctors_per_100k,
     fetch_hospital_capacity,
@@ -65,6 +73,10 @@ WORLD_BANK_FETCHERS = [
     (fetch_population_density, "population_density"),
 ]
 
+# ---------------------------------------------------------------------
+# Helper: Fetch only if file missing
+# ---------------------------------------------------------------------
+
 def run_fetch_if_missing(fetcher: Callable[[], pd.DataFrame], filename: str) -> None:
     """
     Run fetcher function only if the corresponding CSV file
@@ -74,11 +86,15 @@ def run_fetch_if_missing(fetcher: Callable[[], pd.DataFrame], filename: str) -> 
     output_path = Path("data/raw") / f"{filename}.csv"
 
     if output_path.exists():
-        logger.info(f"✓ {filename}.csv already exists. Skipping API call.")
+        logger.info("%s.csv already exists. Skipping API call.", filename)
         return
 
-    logger.info(f"⬇ File not found. Fetching {filename} from API...")
+    logger.info("File not found. Fetching %s from API...", filename)
     fetcher()
+
+# ---------------------------------------------------------------------
+# Main Orchestration Function
+# ---------------------------------------------------------------------
 
 def run_data_acquisition() -> None:
     """
@@ -105,14 +121,17 @@ def run_data_acquisition() -> None:
     for fetcher, filename in EUROSTAT_FETCHERS:
         dataset_name = fetcher.__name__
         try:
-            logger.info(f"Processing {dataset_name}...")
+            logger.info("Processing %s...", dataset_name)
             run_fetch_if_missing(fetcher, filename)
             successful_fetches.append(dataset_name)
-        except Exception as e:
+        except Exception as error:
             logger.error(
-                f"✗ {dataset_name} failed with error: {type(e).__name__}: {str(e)}"
+                "%s failed with error: %s: %s",
+                dataset_name,
+                type(error).__name__,
+                str(error)
             )
-            failed_fetches.append((dataset_name, str(e)))
+            failed_fetches.append((dataset_name, str(error)))
 
     logger.info("=" * 60)
     logger.info("Starting data acquisition from World Bank")
@@ -123,14 +142,17 @@ def run_data_acquisition() -> None:
     for fetcher, filename in WORLD_BANK_FETCHERS:
         dataset_name = fetcher.__name__
         try:
-            logger.info(f"Processing {dataset_name}...")
+            logger.info("Processing %s...", dataset_name)
             run_fetch_if_missing(fetcher, filename)
             successful_fetches.append(dataset_name)
-        except Exception as e:
+        except Exception as error:
             logger.error(
-                f"✗ {dataset_name} failed with error: {type(e).__name__}: {str(e)}"
+                "%s failed with error: %s: %s",
+                dataset_name,
+                type(error).__name__,
+                str(error),
             )
-            failed_fetches.append((dataset_name, str(e)))
+            failed_fetches.append((dataset_name, str(error)))
 
     # Log summary
     total_datasets = len(successful_fetches) + len(failed_fetches)
@@ -138,18 +160,19 @@ def run_data_acquisition() -> None:
     logger.info("Data acquisition completed")
     logger.info("=" * 60)
     logger.info(
-        f"Summary: {len(successful_fetches)}/{total_datasets} datasets "
-        f"fetched successfully"
+        "Summary: %s/%s datasets fetched successfully",
+        len(successful_fetches),
+        total_datasets,
     )
 
     if successful_fetches:
         logger.info("Successful datasets:")
         for name in successful_fetches:
-            logger.info(f"  ✓ {name}")
+            logger.info("  ✓ %s", name)
 
     if failed_fetches:
         logger.warning("Failed datasets:")
         for name, error in failed_fetches:
-            logger.warning(f"  ✗ {name}: {error}")
+            logger.warning("  ✗ %s: %s", name, error)
 
     logger.info("=" * 60)
